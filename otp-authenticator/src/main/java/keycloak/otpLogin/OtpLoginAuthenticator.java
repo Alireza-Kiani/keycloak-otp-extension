@@ -8,20 +8,20 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.UserModel;
+import org.keycloak.credential.CredentialInput;
+import org.keycloak.credential.CredentialModel;
+import org.keycloak.models.*;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import java.time.Instant;
+import java.util.List;
 
 public class OtpLoginAuthenticator extends AbstractUsernameFormAuthenticator implements Authenticator {
-
     private static final String ENTER_OTP_CODE_FORM_TMPL = "enter-code.ftl";
     private static final String AUTH_NOTE_USER_PHONE_NUMBER = "user-phone-number";
     private static final String AUTH_NOTE_PHONE_NUMBER_OTP_CODE = "phone-number-otp-code";
     private static final String AUTH_NOTE_TIMESTAMP = "timestamp";
+    private static final String AUTH_OTP_SECRET_CREDENTIAL_NAME = "AUTH_OTP_SECRET_CREDENTIAL_NAME";
 
     private final Random rand = new Random();
     private static final Logger LOG = Logger.getLogger(OtpLoginAuthenticator.class);
@@ -29,25 +29,16 @@ public class OtpLoginAuthenticator extends AbstractUsernameFormAuthenticator imp
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
-        System.out.println("XD");
         UserModel user = context.getUser();
-        System.out.println(user.getUsername());
         if (user == null) {
-            System.out.println("inf if 35");
             context.failure(AuthenticationFlowError.IDENTITY_PROVIDER_ERROR);
             return;
         }
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-//        LOG.debug(config.getConfig().get("apiUrl"));
-        System.out.println(config.getConfig().get("apiUrl"));
-
         String phoneNumber = user.getUsername();
-
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
-//        String otpCode = rand.generate(phoneNumber);
         String otpCode = "35123";
-        System.out.println(otpCode);
         if (otpCode == null) {
             context.failure(AuthenticationFlowError.INTERNAL_ERROR);
             return;
@@ -70,13 +61,12 @@ public class OtpLoginAuthenticator extends AbstractUsernameFormAuthenticator imp
         String inputOtpCode = formData.getFirst("code-input");
         String savedOtpCode = (String) authSession.getAuthNote(AUTH_NOTE_PHONE_NUMBER_OTP_CODE);
 
-
         if (inputOtpCode.equals(savedOtpCode)) {
             context.success();
             return;
         }
 
-        Response challenge =  context.form()
+        Response challenge = context.form()
                 .setError("wrongOtp")
                 .createForm(ENTER_OTP_CODE_FORM_TMPL);
         context.challenge(challenge);
@@ -95,6 +85,10 @@ public class OtpLoginAuthenticator extends AbstractUsernameFormAuthenticator imp
     @Override
     public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {
         // not needed for current version
+    }
+
+    public static CredentialModel getUserSecretForOtp(KeycloakSession session, RealmModel realm, UserModel user) {
+        return user.credentialManager().getStoredCredentialByNameAndType(AUTH_OTP_SECRET_CREDENTIAL_NAME, CredentialModel.SECRET);
     }
 
     @Override

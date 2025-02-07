@@ -6,6 +6,7 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
+import org.keycloak.credential.CredentialModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -64,6 +65,15 @@ public class PhoneNumberOnlyLoginAuthenticator extends AbstractUsernameFormAuthe
     @Override
     public void close() {
         // not used for current version
+    }
+
+    public static void saveUserSecretForOtp(UserModel user, String secret) {
+        CredentialModel credential = new CredentialModel();
+        credential.setSecretData(secret);
+        credential.setType(CredentialModel.SECRET);
+        credential.setUserLabel(AUTH_OTP_SECRET_CREDENTIAL_NAME);
+
+        user.credentialManager().createStoredCredential(credential);
     }
 
     protected boolean validateOtpCode(AuthenticationFlowContext context) {
