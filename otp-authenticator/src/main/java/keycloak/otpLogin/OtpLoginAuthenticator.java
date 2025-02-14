@@ -3,29 +3,23 @@ package keycloak.otpLogin;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import keycloak.otpLogin.sender.SmsSender;
-import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
-import org.keycloak.credential.CredentialInput;
-import org.keycloak.credential.CredentialModel;
 import org.keycloak.models.*;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import random.RandomNumberGenerator;
 
 import java.time.Instant;
-import java.util.List;
 
 public class OtpLoginAuthenticator extends AbstractUsernameFormAuthenticator implements Authenticator {
     private static final String ENTER_OTP_CODE_FORM_TMPL = "enter-code.ftl";
     private static final String AUTH_NOTE_USER_PHONE_NUMBER = "user-phone-number";
     private static final String AUTH_NOTE_PHONE_NUMBER_OTP_CODE = "phone-number-otp-code";
     private static final String AUTH_NOTE_TIMESTAMP = "timestamp";
-    private static final String AUTH_OTP_SECRET_CREDENTIAL_NAME = "AUTH_OTP_SECRET_CREDENTIAL_NAME";
 
-    private final Random rand = new Random();
-    private static final Logger LOG = Logger.getLogger(OtpLoginAuthenticator.class);
-
+    private final RandomNumberGenerator rand = new random.impl.RandomNumberGenerator();
 
     @Override
     public void authenticate(AuthenticationFlowContext context) {
@@ -35,39 +29,38 @@ public class OtpLoginAuthenticator extends AbstractUsernameFormAuthenticator imp
             return;
         }
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-        String phoneNumber = user.getUsername();
+//        String userId = user.getUsername();
+        String phoneNumber = user.getFirstAttribute("phoneNumber");
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
 
-        String otpCode = "35123";
-        if (otpCode == null) {
-            context.failure(AuthenticationFlowError.INTERNAL_ERROR);
-            return;
-        }
-
-        authSession.setAuthNote(AUTH_NOTE_PHONE_NUMBER_OTP_CODE, otpCode);
+        int otpCode = rand.generate(Integer.parseInt(config.getConfig().get("otpLength")));
+        authSession.setAuthNote(AUTH_NOTE_PHONE_NUMBER_OTP_CODE, String.valueOf(otpCode));
         authSession.setAuthNote(AUTH_NOTE_USER_PHONE_NUMBER, phoneNumber);
         authSession.setAuthNote(AUTH_NOTE_TIMESTAMP, Instant.now().toString());
-        new SmsSender(config.getConfig().get("apiUrl")).sendSms(otpCode, phoneNumber);
+        new SmsSender(config.getConfig().get("apiUrl")).sendSms(String.valueOf(otpCode), phoneNumber);
+        context.form().setAttribute("userPhoneNumber", phoneNumber);
         Response challenge = context.form().createForm(ENTER_OTP_CODE_FORM_TMPL);
         context.challenge(challenge);
     }
 
     @Override
     public void action(AuthenticationFlowContext context) {
+        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         AuthenticationSessionModel authSession = context.getAuthenticationSession();
-        UserModel user = context.getUser();
-        String phoneNumber = user.getUsername();
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
-        String inputOtpCode = formData.getFirst("code-input");
-        String savedOtpCode = (String) authSession.getAuthNote(AUTH_NOTE_PHONE_NUMBER_OTP_CODE);
 
-        if (inputOtpCode.equals(savedOtpCode)) {
+        Instant otpCodeIssueTimestampPlusTtl = Instant.parse(authSession.getAuthNote(AUTH_NOTE_TIMESTAMP)).plusSeconds(Long.parseLong(config.getConfig().get("ttl")));
+        String inputOtpCode = formData.getFirst("code-input");
+        String savedOtpCode = authSession.getAuthNote(AUTH_NOTE_PHONE_NUMBER_OTP_CODE);
+
+        if (validateOtp(otpCodeIssueTimestampPlusTtl, savedOtpCode, inputOtpCode)) {
             context.success();
             return;
         }
 
         Response challenge = context.form()
-                .setError("wrongOtp")
+                .setError("wrongOtp or otpCode expired")
+                .setAttribute("userPhoneNumber", authSession.getAuthNote(AUTH_NOTE_USER_PHONE_NUMBER))
                 .createForm(ENTER_OTP_CODE_FORM_TMPL);
         context.challenge(challenge);
     }
@@ -87,8 +80,8 @@ public class OtpLoginAuthenticator extends AbstractUsernameFormAuthenticator imp
         // not needed for current version
     }
 
-    public static CredentialModel getUserSecretForOtp(KeycloakSession session, RealmModel realm, UserModel user) {
-        return user.credentialManager().getStoredCredentialByNameAndType(AUTH_OTP_SECRET_CREDENTIAL_NAME, CredentialModel.SECRET);
+    public static boolean validateOtp(Instant otpCodeIssueTimestampPlusTtl, String savedOtpCode, String inputOtpCode) {
+        return inputOtpCode.equals(savedOtpCode) && otpCodeIssueTimestampPlusTtl.isAfter(Instant.now());
     }
 
     @Override

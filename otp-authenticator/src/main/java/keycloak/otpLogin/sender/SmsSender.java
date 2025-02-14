@@ -1,11 +1,7 @@
 package keycloak.otpLogin.sender;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.ws.rs.client.ClientBuilder;
-import jakarta.ws.rs.core.Response;
 import lombok.Data;
-import org.jboss.resteasy.client.jaxrs.ResteasyClient;
-import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,17 +11,17 @@ import java.net.http.HttpResponse;
 @Data
 public class SmsSender
 {
-    private final String baseUrl;
+    private final String url;
     public void sendSms(String otpCode, String phoneNumber)
     {
         try {
             HttpClient client = HttpClient.newBuilder().build();
             ObjectMapper objectMapper = new ObjectMapper();
-            Message msg = new Message(phoneNumber, otpCode);
+            Message msg = new Message(otpCode,phoneNumber);
             String json = objectMapper.writeValueAsString(msg);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl+"/api/sms"))
+                    .uri(URI.create(url))
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
