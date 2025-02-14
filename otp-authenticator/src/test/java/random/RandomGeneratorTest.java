@@ -2,11 +2,13 @@ package random;
 
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.TestInstance;
 import random.impl.RandomNumberGenerator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class RandomGeneratorTest {
     public static boolean isFiveDigits(int num) {
         return num >= 10000 && num <= 99999;

@@ -13,6 +13,12 @@
     <module>phone-number-only-authenticator</module>
     <module>otp-authenticator</module>
   </modules>
+  <distributionManagement>
+    <repository>
+      <id>github</id>  <!-- Must match 'server-id' in the workflow -->
+      <url>https://maven.pkg.github.com/Alireza-Kiani/keycloak-otp-extension</url>
+    </repository>
+  </distributionManagement>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
