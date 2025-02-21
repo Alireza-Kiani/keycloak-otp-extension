@@ -32,13 +32,13 @@ to a backend ([can be configured through Keycloak](#available-configuration-on-o
 Also, [OTP TTL is configurable](#available-configuration-on-otp-extension).
 
 #### Necessary attribute (phoneNumber field)
-![assets/setting_attribute.png](setting_attribute.png)
+![assets/setting_attribute.png](assets/setting_attribute.png)
 #### Example authentication flow
-![assets/custom_authentication_flow.png](custom_authentication_flow.png)
+![assets/custom_authentication_flow.png](assets/custom_authentication_flow.png)
 #### Available configuration on OTP extension
-![assets/otp_configuration.png](otp_configuration.png)
+![assets/otp_configuration.png](assets/otp_configuration.png)
 #### Setting the authentication flow in client
-![assets/setting_authentication_flow_in_client.png](setting_authentication_flow_in_client.png)
+![assets/setting_authentication_flow_in_client.png](assets/setting_authentication_flow_in_client.png)
 
 ## Installation
 
